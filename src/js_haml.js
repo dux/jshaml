@@ -605,6 +605,172 @@ class JSHaml {
       return renderWithIfChains(processedAst, context);
     };
   }
+
+  // Generate minimal JavaScript function from AST
+  generateMinimalFunction(template) {
+    const ast = this.parse(template);
+    
+    // Process if-else chains first
+    const processedAst = this.processIfChainsForGeneration(ast);
+    
+    // Generate the function body
+    const functionBody = this.generateCode(processedAst);
+    
+    // Return the minimal function as a string
+    return `function(context) {
+  with (context) {
+    return ${functionBody};
+  }
+}`;
+  }
+
+  processIfChainsForGeneration(nodes) {
+    const processed = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      
+      if (node.type === 'if') {
+        const ifChain = { type: 'if-chain', conditions: [] };
+        ifChain.conditions.push({
+          condition: node.condition,
+          children: this.processIfChainsForGeneration(node.children)
+        });
+        
+        // Look for else/else-if at the same level
+        let j = i + 1;
+        while (j < nodes.length && (nodes[j].type === 'else' || nodes[j].type === 'else-if')) {
+          if (nodes[j].type === 'else') {
+            ifChain.conditions.push({
+              condition: 'true',
+              children: this.processIfChainsForGeneration(nodes[j].children)
+            });
+            j++;
+            break;
+          } else if (nodes[j].type === 'else-if') {
+            ifChain.conditions.push({
+              condition: nodes[j].condition,
+              children: this.processIfChainsForGeneration(nodes[j].children)
+            });
+          }
+          j++;
+        }
+        
+        processed.push(ifChain);
+        i = j - 1;
+      } else if (node.type === 'for') {
+        processed.push({
+          ...node,
+          children: this.processIfChainsForGeneration(node.children)
+        });
+      } else if (node.type === 'element' && node.children) {
+        processed.push({
+          ...node,
+          children: this.processIfChainsForGeneration(node.children)
+        });
+      } else {
+        processed.push(node);
+      }
+    }
+    return processed;
+  }
+
+  generateCode(nodes) {
+    if (nodes.length === 0) return '""';
+    if (nodes.length === 1) return this.generateNodeCode(nodes[0]);
+    
+    // Concatenate multiple nodes
+    return nodes.map(node => this.generateNodeCode(node)).join(' + ');
+  }
+
+  generateNodeCode(node) {
+    switch (node.type) {
+      case 'element':
+        return this.generateElementCode(node);
+      case 'text':
+        return JSON.stringify(node.value);
+      case 'expression':
+        return `(${node.value})`;
+      case 'js':
+        // JS code that doesn't return anything
+        return `(function() { ${node.code}; return ""; })()`;
+      case 'if-chain':
+        return this.generateIfChainCode(node);
+      case 'for':
+        return this.generateForCode(node);
+      default:
+        return '""';
+    }
+  }
+
+  generateElementCode(node) {
+    let code = `"<${node.tag}"`;
+    
+    // Generate attributes
+    for (const [key, value] of Object.entries(node.attributes)) {
+      if (typeof value === 'object' && value.type === 'expression') {
+        // Dynamic attribute
+        code += ` + (function() {
+          var val = ${value.value};
+          if (val === false || val === null || val === undefined) return "";
+          if (val === true) return " ${key}";
+          return " ${key}=\\"" + val + "\\"";
+        })()`;
+      } else {
+        // Static attribute
+        code += ` + " ${key}=\\"${value}\\""`;
+      }
+    }
+    
+    code += ` + ">"`;
+    
+    // Generate children
+    if (node.children && node.children.length > 0) {
+      code += ` + ${this.generateCode(node.children)}`;
+    }
+    
+    code += ` + "</${node.tag}>"`;
+    
+    return `(${code})`;
+  }
+
+  generateIfChainCode(node) {
+    let code = '(';
+    
+    for (let i = 0; i < node.conditions.length; i++) {
+      const cond = node.conditions[i];
+      
+      if (i === 0) {
+        code += `${cond.condition} ? ${this.generateCode(cond.children)} : `;
+      } else if (cond.condition === 'true') {
+        // else case
+        code += this.generateCode(cond.children);
+      } else {
+        // else if case
+        code += `${cond.condition} ? ${this.generateCode(cond.children)} : `;
+      }
+    }
+    
+    // If no else clause, add empty string
+    if (node.conditions[node.conditions.length - 1].condition !== 'true') {
+      code += '""';
+    }
+    
+    code += ')';
+    return code;
+  }
+
+  generateForCode(node) {
+    return `(function() {
+      var result = "";
+      var items = ${node.expression};
+      if (Array.isArray(items)) {
+        for (var ${node.variable} of items) {
+          result += ${this.generateCode(node.children)};
+        }
+      }
+      return result;
+    })()`; 
+  }
 }
 
 module.exports = JSHaml;

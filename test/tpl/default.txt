@@ -1,13 +1,5 @@
 %span
   faa="123"
-  xfaa="123"
-  = 3 + 3
-
-%span
-  faa = "123"
-
-%span
-  faa ="123"
 
 %span multy="1" line={{ 3 + 4 }}
 
@@ -25,11 +17,13 @@
 %button onclick="fez.more()" disabled={{ count <= MAX }}
   +
 
-.nested
-  - for el in [1,2,3,4]
-    %span.bar.baz{ class={{ el > 2 ? `foo-${el}` : null }} }= el
-
 - if count > 0
+  .nested
+    - for el in [1,2,3,4]
+      %span.bar.baz{ class={{ el > 2 ? `foo-${el}` : null }} }= el
+      - for el2 in ['foo', 'bar']
+        %span.bar2.baz{ class={{ el2 > 2 ? `foo-${el2}` : null }} }= el2
+
   %span &mdash;
 
   - if count == MAX
