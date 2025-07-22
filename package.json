@@ -1,0 +1,16 @@
+{
+  "name": "js_haml",
+  "version": "1.0.0",
+  "description": "A simplified HAML-like parser for JavaScript",
+  "main": "src/js_haml.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "keywords": ["haml", "template", "parser"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}

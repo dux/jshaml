@@ -1,0 +1,16 @@
+%button onclick="fez.state.count -= 1" disabled={{ state.count == 1 }}
+  \-
+%span= state.count
+%button onclick="fez.more()" disabled={{ isMax() }}
+  +
+
+- if state.count > 0
+  %span &mdash;
+  
+  - if state.count == MAX
+    MAX
+  - else
+    - if state.count % 2
+      odd
+    - else
+      even
