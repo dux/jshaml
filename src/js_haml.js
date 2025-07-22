@@ -8,8 +8,9 @@ class JSHaml {
     const ast = [];
     const stack = [{ children: ast, indent: -1 }];
 
-    lines.forEach((line, index) => {
-      if (!line.trim()) return; // Skip empty lines
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index];
+      if (!line.trim()) continue; // Skip empty lines
       
       const indent = this.getIndent(line);
       const trimmed = line.trim();
@@ -20,6 +21,42 @@ class JSHaml {
       }
 
       const parent = stack[stack.length - 1];
+      
+      // Check if this looks like a multi-line attribute for the parent element
+      if (this.isMultiLineAttribute(trimmed) && stack.length > 1) {
+        const parentElement = stack[stack.length - 1].node;
+        if (parentElement && parentElement.type === 'element' && indent > parentElement.indent) {
+          // This is a multi-line attribute, collect all consecutive attribute lines
+          const attributeLines = [];
+          let currentIndex = index;
+          
+          while (currentIndex < lines.length) {
+            const attrLine = lines[currentIndex];
+            if (!attrLine.trim()) {
+              currentIndex++;
+              continue;
+            }
+            
+            const attrIndent = this.getIndent(attrLine);
+            const attrTrimmed = attrLine.trim();
+            
+            if (attrIndent === indent && this.isMultiLineAttribute(attrTrimmed)) {
+              attributeLines.push(attrTrimmed);
+              currentIndex++;
+            } else {
+              break;
+            }
+          }
+          
+          // Parse and merge these attributes into the parent element
+          this.mergeMultiLineAttributes(parentElement, attributeLines);
+          
+          // Skip the processed lines
+          index = currentIndex - 1;
+          continue;
+        }
+      }
+      
       const node = this.parseLine(trimmed);
       
       if (node) {
@@ -30,7 +67,7 @@ class JSHaml {
           stack.push({ children: node.children || [], indent, node });
         }
       }
-    });
+    }
 
     return ast;
   }
@@ -38,6 +75,35 @@ class JSHaml {
   getIndent(line) {
     const match = line.match(/^(\s*)/);
     return match ? match[1].length : 0;
+  }
+
+  isMultiLineAttribute(line) {
+    // Check if line matches attribute pattern: word="value" or word={{ expression }} (no spaces before =)
+    return /^\w+=((".+"|'.+'|\{\{.+\}\}))$/.test(line);
+  }
+
+  mergeMultiLineAttributes(elementNode, attributeLines) {
+    // Parse each attribute line and merge into the element's attributes
+    for (const attrLine of attributeLines) {
+      const attrMatch = attrLine.match(/^(\w+)=(.+)$/);
+      if (attrMatch) {
+        const key = attrMatch[1];
+        let value = attrMatch[2].trim();
+        
+        // Remove surrounding quotes if present
+        if ((value.startsWith('"') && value.endsWith('"')) || 
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+          elementNode.attributes[key] = value;
+        } else if (value.startsWith('{{') && value.endsWith('}}')) {
+          // Handle {{ expression }} format
+          const expr = value.substring(2, value.length - 2).trim();
+          elementNode.attributes[key] = { type: 'expression', value: expr };
+        } else {
+          elementNode.attributes[key] = value;
+        }
+      }
+    }
   }
 
   parseLine(line) {

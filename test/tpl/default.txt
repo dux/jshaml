@@ -1,8 +1,22 @@
+%span
+  faa="123"
+  xfaa="123"
+  = 3 + 3
+
+%span
+  faa = "123"
+
+%span
+  faa ="123"
+
 %span multy="1" line={{ 3 + 4 }}
 
 %span
   multy="1"
   line={{ 3 + 4 }}
+
+%jakov
+  test={{ 2 + 3 }}
 
 %button onclick="fez.count -= 1" disabled={{ count == 1 }}
   \-

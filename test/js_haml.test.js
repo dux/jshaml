@@ -219,6 +219,30 @@ describe('JSHaml', () => {
     expect(render({count: 3})).toBe('THREE');
     expect(render({count: 4})).toBe('OTHER');
   });
+
+  test('should handle multi-line attributes', () => {
+    const template = `%span
+  class="test"
+  id="myspan"
+  disabled={{ isDisabled }}`;
+
+    const render = jsHaml.compile(template);
+    const result = render({isDisabled: true});
+    
+    expect(result).toBe('<span class="test" id="myspan" disabled></span>');
+  });
+
+  test('should handle mixed inline and multi-line attributes', () => {
+    const template = `%button onclick="click()"
+  class="btn"
+  disabled={{ disabled }}
+  Click me`;
+
+    const render = jsHaml.compile(template);
+    const result = render({disabled: false});
+    
+    expect(result).toBe('<button onclick="click()" class="btn">Click me</button>');
+  });
 });
 
 // Run a simple test if executed directly
