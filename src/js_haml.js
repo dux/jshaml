@@ -128,10 +128,16 @@ class JSHaml {
         const condition = jsCode.substring(6);
         return { type: 'else-if', condition, children: [] };
       } else if (jsCode.startsWith('for ')) {
-        // Parse for loop: "for el in [1,2,3,4]"
-        const forMatch = jsCode.match(/^for\s+(\w+)\s+in\s+(.+)$/);
+        // Parse for loop: "for el in [1,2,3,4]" or "for el, index in [1,2,3,4]"
+        const forMatch = jsCode.match(/^for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+(.+)$/);
         if (forMatch) {
-          return { type: 'for', variable: forMatch[1], expression: forMatch[2], children: [] };
+          return { 
+            type: 'for', 
+            variable: forMatch[1], 
+            indexVariable: forMatch[2] || null,
+            expression: forMatch[3], 
+            children: [] 
+          };
         }
       }
       
@@ -467,8 +473,12 @@ class JSHaml {
               // Handle for loop
               const items = evalExpression(node.expression, ctx);
               if (Array.isArray(items)) {
-                for (const item of items) {
+                for (let i = 0; i < items.length; i++) {
+                  const item = items[i];
                   const newContext = { ...ctx, [node.variable]: item };
+                  if (node.indexVariable) {
+                    newContext[node.indexVariable] = i;
+                  }
                   html += render(node.children, newContext);
                 }
               }
@@ -760,16 +770,31 @@ class JSHaml {
   }
 
   generateForCode(node) {
-    return `(function() {
-      var result = "";
-      var items = ${node.expression};
-      if (Array.isArray(items)) {
-        for (var ${node.variable} of items) {
-          result += ${this.generateCode(node.children)};
+    if (node.indexVariable) {
+      return `(function() {
+        var result = "";
+        var items = ${node.expression};
+        if (Array.isArray(items)) {
+          for (var i = 0; i < items.length; i++) {
+            var ${node.variable} = items[i];
+            var ${node.indexVariable} = i;
+            result += ${this.generateCode(node.children)};
+          }
         }
-      }
-      return result;
-    })()`; 
+        return result;
+      })()`;
+    } else {
+      return `(function() {
+        var result = "";
+        var items = ${node.expression};
+        if (Array.isArray(items)) {
+          for (var ${node.variable} of items) {
+            result += ${this.generateCode(node.children)};
+          }
+        }
+        return result;
+      })()`;
+    }
   }
 }
 

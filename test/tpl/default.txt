@@ -1,5 +1,8 @@
+- FOO = 1234
+- FOO = 12345
+
 %span
-  faa="123"
+  faa={{ FOO }}
 
 %span multy="1" line={{ 3 + 4 }}
 
@@ -21,8 +24,9 @@
   .nested
     - for el in [1,2,3,4]
       %span.bar.baz{ class={{ el > 2 ? `foo-${el}` : null }} }= el
-      - for el2 in ['foo', 'bar']
-        %span.bar2.baz{ class={{ el2 > 2 ? `foo-${el2}` : null }} }= el2
+      - for el2, index in ['foo', 'bar', 'baz']
+        %span.bar2.baz{ class={{ index > 1 ? `item-${index}` : null }}, data-index={{ index }} }
+          = `Element: ${el2}, Index: ${index}`
 
   %span &mdash;
 

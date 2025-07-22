@@ -1,0 +1,21 @@
+.container
+  %h1 Nested For Loops with Index Test
+  
+  - for item, idx in ['apple', 'banana', 'orange']
+    .outer-loop
+      %h2= `Outer Loop - Item: ${item}, Index: ${idx}`
+      
+      - for color, colorIdx in ['red', 'green', 'blue']
+        .inner-loop
+          %span.item-color
+            = `${item} (${idx}) - ${color} (${colorIdx})`
+          
+  %hr
+  
+  %h2 Matrix Example
+  - for row, rowIdx in [['A', 'B', 'C'], ['D', 'E', 'F'], ['G', 'H', 'I']]
+    .row
+      %span.row-label= `Row ${rowIdx}:`
+      - for cell, colIdx in row
+        %span.cell{ data-row={{ rowIdx }}, data-col={{ colIdx }} }
+          = `${cell}[${rowIdx},${colIdx}]`
