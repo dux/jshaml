@@ -26,7 +26,7 @@ class JSHaml {
         node.indent = indent;
         parent.children.push(node);
         
-        if (node.type === 'element' || node.type === 'if' || node.type === 'else' || node.type === 'else-if') {
+        if (node.type === 'element' || node.type === 'if' || node.type === 'else' || node.type === 'else-if' || node.type === 'for') {
           stack.push({ children: node.children || [], indent, node });
         }
       }
@@ -58,9 +58,44 @@ class JSHaml {
       } else if (jsCode.startsWith('else if ')) {
         const condition = jsCode.substring(8);
         return { type: 'else-if', condition, children: [] };
+      } else if (jsCode.startsWith('elsif ')) {
+        const condition = jsCode.substring(6);
+        return { type: 'else-if', condition, children: [] };
+      } else if (jsCode.startsWith('for ')) {
+        // Parse for loop: "for el in [1,2,3,4]"
+        const forMatch = jsCode.match(/^for\s+(\w+)\s+in\s+(.+)$/);
+        if (forMatch) {
+          return { type: 'for', variable: forMatch[1], expression: forMatch[2], children: [] };
+        }
       }
       
       return { type: 'js', code: jsCode };
+    }
+
+    // Handle div shorthand (.class or #id)
+    if (line.startsWith('.') || line.startsWith('#')) {
+      // Convert .class or #id to %div.class or %div#id
+      const divMatch = line.match(/^([\.\#][\w\.\#\-]*)/);
+      if (divMatch) {
+        const tag = 'div';
+        const classAndId = divMatch[1];
+        let remainingLine = line.substring(divMatch[0].length);
+        
+        // Parse classes and id from the shorthand
+        const classes = [];
+        let id = null;
+        
+        const parts = classAndId.match(/[\.\#][\w\-]+/g) || [];
+        for (const part of parts) {
+          if (part.startsWith('.')) {
+            classes.push(part.substring(1));
+          } else if (part.startsWith('#')) {
+            id = part.substring(1);
+          }
+        }
+        
+        return this.parseElementWithClassesAndId(tag, classes, id, remainingLine);
+      }
     }
 
     // Handle element
@@ -88,38 +123,7 @@ class JSHaml {
         }
       }
       
-      // Parse attributes and find where content starts
-      const { attributes, contentStartIndex } = this.parseElementAttributes(remainingLine);
-      
-      // Add classes and id to attributes
-      if (classes.length > 0) {
-        attributes.class = classes.join(' ');
-      }
-      if (id) {
-        attributes.id = id;
-      }
-      
-      const node = { type: 'element', tag, attributes, children: [] };
-      
-      // Check for inline content
-      if (contentStartIndex !== -1) {
-        const content = remainingLine.substring(contentStartIndex).trim();
-        if (content.startsWith('= ')) {
-          // Expression content
-          node.children = [{ type: 'expression', value: content.substring(2).trim() }];
-        } else if (content === '=') {
-          // Empty expression
-          node.children = [];
-        } else if (content.startsWith('=')) {
-          // Expression without space
-          node.children = [{ type: 'expression', value: content.substring(1).trim() }];
-        } else if (content) {
-          // Text content
-          node.children = [{ type: 'text', value: content }];
-        }
-      }
-      
-      return node;
+      return this.parseElementWithClassesAndId(tag, classes, id, remainingLine);
     }
 
     // Handle standalone expression
@@ -129,6 +133,165 @@ class JSHaml {
 
     // Handle text
     return { type: 'text', value: line };
+  }
+
+  parseElementWithClassesAndId(tag, classes, id, remainingLine) {
+    // First check for curly brace attributes { attr: "value" }
+    let curlyAttributes = {};
+    let afterCurlyIndex = 0;
+    
+    // Find matching closing brace, accounting for nested braces
+    const trimmedLine = remainingLine.trim();
+    if (trimmedLine.startsWith('{')) {
+      let braceCount = 0;
+      let endIndex = -1;
+      
+      for (let i = 0; i < trimmedLine.length; i++) {
+        if (trimmedLine[i] === '{') braceCount++;
+        if (trimmedLine[i] === '}') {
+          braceCount--;
+          if (braceCount === 0) {
+            endIndex = i;
+            break;
+          }
+        }
+      }
+      
+      if (endIndex !== -1) {
+        const attrString = trimmedLine.substring(1, endIndex).trim();
+        afterCurlyIndex = remainingLine.indexOf('{') + endIndex + 1;
+        
+        // Smart split on commas (not inside braces or backticks)
+        const attrPairs = [];
+        let currentPair = '';
+        let braceDepth = 0;
+        let inBackticks = false;
+        
+        for (let i = 0; i < attrString.length; i++) {
+          const char = attrString[i];
+          if (char === '`') {
+            inBackticks = !inBackticks;
+          } else if (!inBackticks) {
+            if (char === '{') braceDepth++;
+            else if (char === '}') braceDepth--;
+          }
+          
+          if (char === ',' && braceDepth === 0 && !inBackticks) {
+            attrPairs.push(currentPair.trim());
+            currentPair = '';
+          } else {
+            currentPair += char;
+          }
+        }
+        
+        if (currentPair.trim()) {
+          attrPairs.push(currentPair.trim());
+        }
+        
+        for (const pair of attrPairs) {
+          // Find the first colon or equals that's not inside braces or backticks
+          let separatorIndex = -1;
+          let pairBraceDepth = 0;
+          let pairInBackticks = false;
+          
+          for (let i = 0; i < pair.length; i++) {
+            const char = pair[i];
+            if (char === '`') {
+              pairInBackticks = !pairInBackticks;
+            } else if (!pairInBackticks) {
+              if (char === '{') pairBraceDepth++;
+              else if (char === '}') pairBraceDepth--;
+              else if ((char === ':' || char === '=') && pairBraceDepth === 0 && separatorIndex === -1) {
+                separatorIndex = i;
+                break;
+              }
+            }
+          }
+          
+          if (separatorIndex !== -1) {
+            const key = pair.substring(0, separatorIndex).trim();
+            let value = pair.substring(separatorIndex + 1).trim();
+            
+            // Remove surrounding quotes if present
+            if ((value.startsWith('"') && value.endsWith('"')) || 
+                (value.startsWith("'") && value.endsWith("'"))) {
+              value = value.slice(1, -1);
+            }
+            
+            // Check if value contains {{ }} expressions
+            if (value.includes('{{') && value.includes('}}')) {
+              // Check if entire value is a single {{ expression }}
+              if (value.startsWith('{{') && value.endsWith('}}')) {
+                // Extract everything between the outer {{ and }}
+                const expr = value.substring(2, value.length - 2).trim();
+                curlyAttributes[key] = { type: 'expression', value: expr };
+              } else {
+                // Complex case: string with embedded {{ }} expressions
+                const processedValue = value.replace(/\{\{\s*([^}]+)\s*\}\}/g, (match, expr) => {
+                  return `" + (${expr}) + "`;
+                });
+                curlyAttributes[key] = { type: 'expression', value: `"${processedValue}"` };
+              }
+            } else {
+              curlyAttributes[key] = value;
+            }
+          }
+        }
+      }
+    }
+    
+    // Parse regular attributes and find where content starts
+    const remainingAfterCurly = remainingLine.substring(afterCurlyIndex);
+    const { attributes, contentStartIndex } = this.parseElementAttributes(remainingAfterCurly);
+    
+    // Add classes and id to attributes first
+    if (classes.length > 0) {
+      attributes.class = classes.join(' ');
+    }
+    if (id) {
+      attributes.id = id;
+    }
+    
+    // Merge curly attributes, handling class specially
+    for (const [key, value] of Object.entries(curlyAttributes)) {
+      if (key === 'class' && attributes.class) {
+        // Special handling for class: need to merge both static and dynamic classes
+        if (typeof value === 'object' && value.type === 'expression') {
+          // Create an expression that combines static classes with dynamic ones
+          attributes.class = {
+            type: 'expression',
+            value: `"${attributes.class}" + ((${value.value}) ? " " + (${value.value}) : "")`
+          };
+        } else {
+          // Simple string value, just concatenate
+          attributes.class = `${attributes.class} ${value}`;
+        }
+      } else {
+        attributes[key] = value;
+      }
+    }
+    
+    const node = { type: 'element', tag, attributes, children: [] };
+    
+    // Check for inline content
+    if (contentStartIndex !== -1) {
+      const content = remainingAfterCurly.substring(contentStartIndex).trim();
+      if (content.startsWith('= ')) {
+        // Expression content
+        node.children = [{ type: 'expression', value: content.substring(2).trim() }];
+      } else if (content === '=') {
+        // Empty expression
+        node.children = [];
+      } else if (content.startsWith('=')) {
+        // Expression without space
+        node.children = [{ type: 'expression', value: content.substring(1).trim() }];
+      } else if (content) {
+        // Text content
+        node.children = [{ type: 'text', value: content }];
+      }
+    }
+    
+    return node;
   }
 
   parseElementAttributes(str) {
@@ -234,6 +397,16 @@ class JSHaml {
             case 'else':
               // This is handled by the previous if
               break;
+            case 'for':
+              // Handle for loop
+              const items = evalExpression(node.expression, ctx);
+              if (Array.isArray(items)) {
+                for (const item of items) {
+                  const newContext = { ...ctx, [node.variable]: item };
+                  html += render(node.children, newContext);
+                }
+              }
+              break;
             case 'if-chain':
               // Handle if-chain nodes
               for (const cond of node.conditions) {
@@ -280,11 +453,9 @@ class JSHaml {
 
       const evalExpression = (expr, ctx) => {
         try {
-          // Create a function that has access to context properties
-          const keys = Object.keys(ctx);
-          const values = keys.map(k => ctx[k]);
-          const func = new Function(...keys, `return ${expr}`);
-          return func(...values);
+          // Use 'with' to make context properties available directly
+          const func = new Function('context', `with (context) { return ${expr} }`);
+          return func(ctx);
         } catch (e) {
           return '';
         }
@@ -324,6 +495,12 @@ class JSHaml {
             
             processed.push(ifChain);
             i = j - 1;
+          } else if (node.type === 'for') {
+            // Process children of for loops too
+            processed.push({
+              ...node,
+              children: processIfChains(node.children)
+            });
           } else if (node.type === 'element' && node.children) {
             // Process children of elements too
             processed.push({

@@ -22,9 +22,9 @@ describe('JSHaml', () => {
   });
 
   test('should render expressions with =', () => {
-    const template = `%span= state.count`;
+    const template = `%span= count`;
     const render = jsHaml.compile(template);
-    const context = { state: { count: 5 } };
+    const context = { count: 5 };
     expect(render(context)).toBe('<span>5</span>');
   });
 
@@ -35,11 +35,11 @@ describe('JSHaml', () => {
   });
 
   test('should handle dynamic attributes with {{ }}', () => {
-    const template = `%button disabled={{ state.count == 1 }}`;
+    const template = `%button disabled={{ count == 1 }}`;
     const render = jsHaml.compile(template);
     
-    expect(render({ state: { count: 1 } })).toBe('<button disabled></button>');
-    expect(render({ state: { count: 2 } })).toBe('<button></button>');
+    expect(render({ count: 1 })).toBe('<button disabled></button>');
+    expect(render({ count: 2 })).toBe('<button></button>');
   });
 
   test('should handle nested elements', () => {
@@ -53,38 +53,38 @@ describe('JSHaml', () => {
 
   test('should handle if conditions', () => {
     const template = `
-- if state.count > 0
+- if count > 0
   %span Positive`;
     const render = jsHaml.compile(template);
     
-    expect(render({ state: { count: 1 } })).toBe('<span>Positive</span>');
-    expect(render({ state: { count: 0 } })).toBe('');
+    expect(render({ count: 1 })).toBe('<span>Positive</span>');
+    expect(render({ count: 0 })).toBe('');
   });
 
   test('should handle if-else chains', () => {
     const template = `
-- if state.count == 0
+- if count == 0
   Zero
 - else
   Not zero`;
     const render = jsHaml.compile(template);
     
-    expect(render({ state: { count: 0 } })).toBe('Zero');
-    expect(render({ state: { count: 1 } })).toBe('Not zero');
+    expect(render({ count: 0 })).toBe('Zero');
+    expect(render({ count: 1 })).toBe('Not zero');
   });
 
   test('should handle nested if-else', () => {
     const template = `
-- if state.count > 0
-  - if state.count % 2
+- if count > 0
+  - if count % 2
     odd
   - else
     even`;
     const render = jsHaml.compile(template);
     
-    expect(render({ state: { count: 3 } })).toBe('odd');
-    expect(render({ state: { count: 4 } })).toBe('even');
-    expect(render({ state: { count: 0 } })).toBe('');
+    expect(render({ count: 3 })).toBe('odd');
+    expect(render({ count: 4 })).toBe('even');
+    expect(render({ count: 0 })).toBe('');
   });
 
   test('should execute JS code but return empty string', () => {
@@ -102,33 +102,33 @@ describe('JSHaml', () => {
     
     const context = {
       fez: {
-        state: { count: 5 },
+        count: 5,
         more: () => {}
       },
-      state: { count: 5 },
+      count: 5,
       isMax: () => false,
       MAX: 10
     };
 
     const result = render(context);
-    expect(result).toContain('<button onclick="fez.state.count -= 1">-</button>');
+    expect(result).toContain('<button onclick="fez.count -= 1">-</button>');
     expect(result).toContain('<span>5</span>');
-    expect(result).toContain('<button onclick="fez.more()">+</button>');
+    expect(result).toContain('<button onclick="fez.more()" disabled>+</button>');
     expect(result).toContain('<span>&mdash;</span>');
     expect(result).toContain('odd');
   });
 
   test('should handle MAX condition', () => {
     const template = `
-- if state.count == MAX
+- if count == MAX
   MAX
 - else
   Not MAX`;
 
     const render = jsHaml.compile(template);
     
-    expect(render({ state: { count: 10 }, MAX: 10 })).toBe('MAX');
-    expect(render({ state: { count: 5 }, MAX: 10 })).toBe('Not MAX');
+    expect(render({ count: 10, MAX: 10 })).toBe('MAX');
+    expect(render({ count: 5, MAX: 10 })).toBe('Not MAX');
   });
 
   test('should handle mixed content', () => {
@@ -143,6 +143,82 @@ describe('JSHaml', () => {
     
     expect(result).toBe('<div>Text content<span>Hello</span>More text</div>');
   });
+
+  test('should handle for loops', () => {
+    const template = `
+- for item in items
+  %li= item`;
+
+    const render = jsHaml.compile(template);
+    const result = render({ items: ['apple', 'banana', 'cherry'] });
+    
+    expect(result).toBe('<li>apple</li><li>banana</li><li>cherry</li>');
+  });
+
+  test('should handle for loops with dynamic attributes', () => {
+    const template = `
+- for el in [1,2,3]
+  %span{ class: "foo-{{ el }}" }= el`;
+
+    const render = jsHaml.compile(template);
+    const result = render({});
+    
+    expect(result).toBe('<span class="foo-1">1</span><span class="foo-2">2</span><span class="foo-3">3</span>');
+  });
+
+  test('should handle div shorthand with .class', () => {
+    const template = `.container
+  %p Content`;
+
+    const render = jsHaml.compile(template);
+    const result = render({});
+    
+    expect(result).toBe('<div class="container"><p>Content</p></div>');
+  });
+
+  test('should handle div shorthand with #id', () => {
+    const template = `#main`;
+
+    const render = jsHaml.compile(template);
+    const result = render({});
+    
+    expect(result).toBe('<div id="main"></div>');
+  });
+
+  test('should handle elsif as alias for else if', () => {
+    const template = `
+- if count == 1
+  ONE
+- elsif count == 2
+  TWO
+- else
+  OTHER`;
+
+    const render = jsHaml.compile(template);
+    
+    expect(render({count: 1})).toBe('ONE');
+    expect(render({count: 2})).toBe('TWO');
+    expect(render({count: 3})).toBe('OTHER');
+  });
+
+  test('should handle both "else if" and "elsif" in same template', () => {
+    const template = `
+- if count == 1
+  ONE
+- else if count == 2
+  TWO
+- elsif count == 3
+  THREE
+- else
+  OTHER`;
+
+    const render = jsHaml.compile(template);
+    
+    expect(render({count: 1})).toBe('ONE');
+    expect(render({count: 2})).toBe('TWO');
+    expect(render({count: 3})).toBe('THREE');
+    expect(render({count: 4})).toBe('OTHER');
+  });
 });
 
 // Run a simple test if executed directly
@@ -154,10 +230,10 @@ if (require.main === module) {
   
   const context = {
     fez: {
-      state: { count: 5 },
+      count: 5,
       more: () => console.log('more clicked')
     },
-    state: { count: 5 },
+    count: 5,
     isMax: () => false,
     MAX: 10
   };

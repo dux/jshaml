@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+
+const fs = require('fs');
+const path = require('path');
+const JSHaml = require('../src/js_haml');
+
+// Check command line arguments
+if (process.argv.length < 3) {
+  console.error('Usage: render <template-path> [json-data]');
+  process.exit(1);
+}
+
+const templatePath = process.argv[2];
+const jsonData = process.argv[3];
+
+// Read template file
+let template;
+try {
+  template = fs.readFileSync(templatePath, 'utf8');
+} catch (err) {
+  console.error(`Error reading template file: ${err.message}`);
+  process.exit(1);
+}
+
+// Create JSHaml instance and compile template
+const jsHaml = new JSHaml();
+const renderFunction = jsHaml.compile(template);
+
+if (!jsonData) {
+  // No JSON data provided - print the compiled function
+  console.log(renderFunction.toString());
+} else {
+  // JSON data provided - parse it and render the template
+  let data;
+  try {
+    data = JSON.parse(jsonData);
+  } catch (err) {
+    console.error(`Error parsing JSON data: ${err.message}`);
+    process.exit(1);
+  }
+  
+  // Render template with data and print result
+  const result = renderFunction(data);
+  
+  // Pretty print the HTML
+  const prettyHtml = prettifyHtml(result);
+  console.log(prettyHtml);
+}
+
+// Simple HTML prettifier
+function prettifyHtml(html) {
+  let formatted = '';
+  let indent = 0;
+  const tags = html.match(/<[^>]+>|[^<]+/g) || [];
+  
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i];
+    
+    if (tag.startsWith('</')) {
+      // Closing tag
+      indent = Math.max(0, indent - 1);
+      formatted += '  '.repeat(indent) + tag;
+      if (i < tags.length - 1 && !tags[i + 1].startsWith('<')) {
+        // Don't add newline if next is text content
+        continue;
+      }
+      formatted += '\n';
+    } else if (tag.startsWith('<') && !tag.endsWith('/>')) {
+      // Opening tag
+      formatted += '  '.repeat(indent) + tag;
+      
+      // Check if next is text content
+      if (i < tags.length - 1 && !tags[i + 1].startsWith('<')) {
+        // Keep text on same line as opening tag
+        continue;
+      }
+      formatted += '\n';
+      
+      // Don't increase indent for self-closing tags or tags like <br>
+      if (!tag.match(/<(br|hr|img|input|meta|link|area|base|col|embed|source|track|wbr)\b/i)) {
+        indent++;
+      }
+    } else if (!tag.startsWith('<')) {
+      // Text content
+      const trimmed = tag.trim();
+      if (trimmed) {
+        formatted += trimmed;
+        // Check if next is closing tag
+        if (i < tags.length - 1 && tags[i + 1].startsWith('</')) {
+          // Keep closing tag on same line
+          continue;
+        }
+        formatted += '\n';
+      }
+    } else {
+      // Self-closing tag or other
+      formatted += '  '.repeat(indent) + tag + '\n';
+    }
+  }
+  
+  return formatted.trim();
+}

@@ -1,16 +1,29 @@
-%button onclick="fez.state.count -= 1" disabled={{ state.count == 1 }}
+%span multy="1" line={{ 3 + 4 }}
+
+%span
+  multy="1"
+  line={{ 3 + 4 }}
+
+%button onclick="fez.count -= 1" disabled={{ count == 1 }}
   \-
-%span= state.count
-%button onclick="fez.more()" disabled={{ isMax() }}
+%span= count
+
+%button onclick="fez.more()" disabled={{ count <= MAX }}
   +
 
-- if state.count > 0
+.nested
+  - for el in [1,2,3,4]
+    %span.bar.baz{ class={{ el > 2 ? `foo-${el}` : null }} }= el
+
+- if count > 0
   %span &mdash;
-  
-  - if state.count == MAX
+
+  - if count == MAX
     MAX
+  - else if count == 3
+    THREE
   - else
-    - if state.count % 2
+    - if count % 2
       odd
     - else
       even
