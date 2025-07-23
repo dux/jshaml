@@ -940,4 +940,4 @@ class JSHaml {
 }
 
 // ES6 exports
-export default JSHaml;
+export default new JSHaml();

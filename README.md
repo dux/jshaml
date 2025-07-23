@@ -23,10 +23,8 @@ npm install @dinoreic/haml
 ## Usage
 
 ```javascript
-import JSHaml from '@dinoreic/haml';
-// or CommonJS: const JSHaml = require('@dinoreic/haml');
-
-const jsHaml = new JSHaml();
+import jsHaml from '@dinoreic/haml';
+// or CommonJS: const jsHaml = require('@dinoreic/haml');
 
 // Define your template
 const template = `
@@ -97,9 +95,7 @@ console.log(html);
 ## Complex Example
 
 ```javascript
-import JSHaml from '@dinoreic/haml';
-
-const jsHaml = new JSHaml();
+import jsHaml from '@dinoreic/haml';
 
 const blogTemplate = `
 %article.blog-post

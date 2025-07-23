@@ -1,4 +1,4 @@
-import JSHaml from '../src/haml.js';
+import jsHaml from '../src/haml.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -7,11 +7,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 describe('JSHaml', () => {
-  let jsHaml;
-
-  beforeEach(() => {
-    jsHaml = new JSHaml();
-  });
 
   test('should parse and render basic elements', () => {
     const template = `%div`;
@@ -318,7 +313,6 @@ describe('JSHaml', () => {
 
 // Run a simple test if executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const jsHaml = new JSHaml();
   
   const template = fs.readFileSync(path.join(__dirname, 'tpl', 'default.haml'), 'utf8');
   const render = jsHaml.compile(template);

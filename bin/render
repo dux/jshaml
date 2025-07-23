@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import JSHaml from '../src/haml.js';
+import jsHaml from '../src/haml.js';
 import prettifyHtml from '../src/prettify.js';
 
 // Check command line arguments
@@ -23,8 +23,6 @@ try {
   process.exit(1);
 }
 
-// Create JSHaml instance
-const jsHaml = new JSHaml();
 
 if (!jsonData) {
   // No JSON data provided - generate and return the minimal function
