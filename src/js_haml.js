@@ -3,6 +3,50 @@ class JSHaml {
     this.indentSize = 2;
   }
 
+  // HTML escape function
+  escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Parse text that may contain {{ expressions }}
+  parseTextWithExpressions(text) {
+    const nodes = [];
+    let lastIndex = 0;
+    const regex = /\{\{\s*([^}]+)\s*\}\}/g;
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+      // Add text before the expression
+      if (match.index > lastIndex) {
+        nodes.push({ type: 'text', value: text.substring(lastIndex, match.index) });
+      }
+      
+      // Add the expression
+      const expr = match[1].trim();
+      nodes.push({ type: 'expression', value: expr });
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add remaining text
+    if (lastIndex < text.length) {
+      nodes.push({ type: 'text', value: text.substring(lastIndex) });
+    }
+    
+    // If no expressions found, return original text node
+    if (nodes.length === 0) {
+      return [{ type: 'text', value: text }];
+    }
+    
+    return nodes;
+  }
+
   parse(template) {
     const lines = template.split('\n');
     const ast = [];
@@ -200,11 +244,16 @@ class JSHaml {
 
     // Handle standalone expression
     if (line.startsWith('= ')) {
-      return { type: 'expression', value: line.substring(2).trim() };
+      return { type: 'expression', value: line.substring(2).trim(), source: 'equals' };
     }
 
-    // Handle text
-    return { type: 'text', value: line };
+    // Handle text - check for embedded expressions
+    const textNodes = this.parseTextWithExpressions(line);
+    if (textNodes.length === 1) {
+      return textNodes[0];
+    }
+    // Return a container node for multiple nodes
+    return { type: 'fragment', children: textNodes };
   }
 
   parseElementWithClassesAndId(tag, classes, id, remainingLine) {
@@ -358,8 +407,8 @@ class JSHaml {
         // Expression without space
         node.children = [{ type: 'expression', value: content.substring(1).trim() }];
       } else if (content) {
-        // Text content
-        node.children = [{ type: 'text', value: content }];
+        // Text content - check for embedded expressions
+        node.children = this.parseTextWithExpressions(content);
       }
     }
     
@@ -442,6 +491,7 @@ class JSHaml {
 
   compile(template) {
     const ast = this.parse(template);
+    const self = this;
     
     return function(context) {
       const render = (nodes, ctx) => {
@@ -456,13 +506,18 @@ class JSHaml {
               html += node.value;
               break;
             case 'expression':
-              html += evalExpression(node.value, ctx);
+              // Check if this is a raw expression
+              if (node.value.startsWith('raw ')) {
+                html += evalExpression(node.value.substring(4).trim(), ctx, false);
+              } else {
+                html += evalExpression(node.value, ctx);
+              }
               break;
             case 'js':
               evalExpression(node.code, ctx);
               break;
             case 'if':
-              if (evalExpression(node.condition, ctx)) {
+              if (evalExpression(node.condition, ctx, false)) {
                 html += render(node.children, ctx);
               }
               break;
@@ -471,7 +526,7 @@ class JSHaml {
               break;
             case 'for':
               // Handle for loop
-              const items = evalExpression(node.expression, ctx);
+              const items = evalExpression(node.expression, ctx, false);
               if (Array.isArray(items)) {
                 for (let i = 0; i < items.length; i++) {
                   const item = items[i];
@@ -483,10 +538,14 @@ class JSHaml {
                 }
               }
               break;
+            case 'fragment':
+              // Handle fragment (multiple nodes from text with expressions)
+              html += render(node.children, ctx);
+              break;
             case 'if-chain':
               // Handle if-chain nodes
               for (const cond of node.conditions) {
-                if (evalExpression(cond.condition, ctx)) {
+                if (evalExpression(cond.condition, ctx, false)) {
                   html += render(cond.children, ctx);
                   break;
                 }
@@ -504,7 +563,10 @@ class JSHaml {
         // Render attributes
         for (const [key, value] of Object.entries(node.attributes)) {
           if (typeof value === 'object' && value.type === 'expression') {
-            const result = evalExpression(value.value, ctx);
+            // Check if this is a raw expression
+            const isRaw = value.value.startsWith('raw ');
+            const exprValue = isRaw ? value.value.substring(4).trim() : value.value;
+            const result = evalExpression(exprValue, ctx, !isRaw);
             if (result !== false && result !== null && result !== undefined) {
               html += ` ${key}`;
               if (result !== true) {
@@ -527,11 +589,20 @@ class JSHaml {
         return html;
       };
 
-      const evalExpression = (expr, ctx) => {
+      const evalExpression = (expr, ctx, escapeOutput = true) => {
         try {
           // Use 'with' to make context properties available directly
           const func = new Function('context', `with (context) { return ${expr} }`);
-          return func(ctx);
+          const result = func(ctx);
+          
+          // Skip escaping for boolean values used in conditionals
+          if (typeof result === 'boolean') return result;
+          
+          // Apply HTML escaping by default, unless escapeOutput is false
+          if (escapeOutput) {
+            return self.escapeHtml(result);
+          }
+          return result;
         } catch (e) {
           return '';
         }
@@ -626,8 +697,20 @@ class JSHaml {
     // Generate the function body
     const functionBody = this.generateCode(processedAst);
     
+    // Include the escape function inline
+    const escapeFunc = `function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }`;
+    
     // Return the minimal function as a string
     return `function(context) {
+  ${escapeFunc}
   with (context) {
     return ${functionBody};
   }
@@ -699,7 +782,12 @@ class JSHaml {
       case 'text':
         return JSON.stringify(node.value);
       case 'expression':
-        return `(${node.value})`;
+        // Check if this is a raw expression
+        if (node.value.startsWith('raw ')) {
+          return `(${node.value.substring(4).trim()})`;
+        } else {
+          return `escapeHtml(${node.value})`;
+        }
       case 'js':
         // JS code that doesn't return anything
         return `(function() { ${node.code}; return ""; })()`;
@@ -707,6 +795,8 @@ class JSHaml {
         return this.generateIfChainCode(node);
       case 'for':
         return this.generateForCode(node);
+      case 'fragment':
+        return this.generateCode(node.children);
       default:
         return '""';
     }
@@ -719,11 +809,13 @@ class JSHaml {
     for (const [key, value] of Object.entries(node.attributes)) {
       if (typeof value === 'object' && value.type === 'expression') {
         // Dynamic attribute
+        const isRaw = value.value.startsWith('raw ');
+        const exprValue = isRaw ? value.value.substring(4).trim() : value.value;
         code += ` + (function() {
-          var val = ${value.value};
+          var val = ${exprValue};
           if (val === false || val === null || val === undefined) return "";
           if (val === true) return " ${key}";
-          return " ${key}=\\"" + val + "\\"";
+          return " ${key}=\\"" + ${isRaw ? 'val' : 'escapeHtml(val)'} + "\\"";
         })()`;
       } else {
         // Static attribute
@@ -798,4 +890,4 @@ class JSHaml {
   }
 }
 
-module.exports = JSHaml;
+export default JSHaml;

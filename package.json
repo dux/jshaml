@@ -1,11 +1,12 @@
 {
-  "name": "js_haml",
-  "version": "1.0.0",
+  "name": "@dinoreic/haml",
+  "version": "0.1.0",
   "description": "A simplified HAML-like parser for JavaScript",
   "main": "src/js_haml.js",
+  "type": "module",
   "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch"
   },
   "keywords": ["haml", "template", "parser"],
   "author": "",

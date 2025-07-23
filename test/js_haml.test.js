@@ -1,6 +1,10 @@
-const JSHaml = require('../src/js_haml');
-const fs = require('fs');
-const path = require('path');
+import JSHaml from '../src/js_haml.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('JSHaml', () => {
   let jsHaml;
@@ -97,7 +101,7 @@ describe('JSHaml', () => {
   });
 
   test('should handle the complete example', () => {
-    const template = fs.readFileSync(path.join(__dirname, 'tpl', 'default.txt'), 'utf8');
+    const template = fs.readFileSync(path.join(__dirname, 'tpl', 'default.haml'), 'utf8');
     const render = jsHaml.compile(template);
     
     const context = {
@@ -246,10 +250,10 @@ describe('JSHaml', () => {
 });
 
 // Run a simple test if executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   const jsHaml = new JSHaml();
   
-  const template = fs.readFileSync(path.join(__dirname, 'tpl', 'default.txt'), 'utf8');
+  const template = fs.readFileSync(path.join(__dirname, 'tpl', 'default.haml'), 'utf8');
   const render = jsHaml.compile(template);
   
   const context = {
