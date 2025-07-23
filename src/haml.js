@@ -124,13 +124,13 @@ class JSHaml {
 
   isMultiLineAttribute(line) {
     // Check if line matches attribute pattern: word="value" or word={{ expression }} (no spaces before =)
-    return /^\w+=((".+"|'.+'|\{\{.+\}\}))$/.test(line);
+    return /^[\w-]+=((".+"|'.+'|\{\{.+\}\}))$/.test(line);
   }
 
   mergeMultiLineAttributes(elementNode, attributeLines) {
     // Parse each attribute line and merge into the element's attributes
     for (const attrLine of attributeLines) {
-      const attrMatch = attrLine.match(/^(\w+)=(.+)$/);
+      const attrMatch = attrLine.match(/^([\w-]+)=(.+)$/);
       if (attrMatch) {
         const key = attrMatch[1];
         let value = attrMatch[2].trim();
@@ -139,7 +139,12 @@ class JSHaml {
         if ((value.startsWith('"') && value.endsWith('"')) ||
             (value.startsWith("'") && value.endsWith("'"))) {
           value = value.slice(1, -1);
-          elementNode.attributes[key] = value;
+          // Check if the quoted value contains {{ expressions }}
+          if (value.includes('{{')) {
+            elementNode.attributes[key] = this.parseTextWithExpressions(value);
+          } else {
+            elementNode.attributes[key] = value;
+          }
         } else if (value.startsWith('{{') && value.endsWith('}}')) {
           // Handle {{ expression }} format
           const expr = value.substring(2, value.length - 2).trim();
@@ -338,21 +343,21 @@ class JSHaml {
             if ((value.startsWith('"') && value.endsWith('"')) ||
                 (value.startsWith("'") && value.endsWith("'"))) {
               value = value.slice(1, -1);
-            }
-
-            // Check if value contains {{ }} expressions
-            if (value.includes('{{') && value.includes('}}')) {
+              // Check if the quoted value contains {{ expressions }}
+              if (value.includes('{{')) {
+                curlyAttributes[key] = this.parseTextWithExpressions(value);
+              } else {
+                curlyAttributes[key] = value;
+              }
+            } else if (value.includes('{{') && value.includes('}}')) {
               // Check if entire value is a single {{ expression }}
               if (value.startsWith('{{') && value.endsWith('}}')) {
                 // Extract everything between the outer {{ and }}
                 const expr = value.substring(2, value.length - 2).trim();
                 curlyAttributes[key] = { type: 'expression', value: expr };
               } else {
-                // Complex case: string with embedded {{ }} expressions
-                const processedValue = value.replace(/\{\{\s*([^}]+)\s*\}\}/g, (match, expr) => {
-                  return `" + (${expr}) + "`;
-                });
-                curlyAttributes[key] = { type: 'expression', value: `"${processedValue}"` };
+                // Use parseTextWithExpressions for mixed content
+                curlyAttributes[key] = this.parseTextWithExpressions(value);
               }
             } else {
               curlyAttributes[key] = value;
@@ -463,13 +468,24 @@ class JSHaml {
   }
 
   looksLikeAttribute(str) {
-    return /^(\w+)=/.test(str) || /^(\w+)={{/.test(str);
+    return /^([\w-]+)=/.test(str) || /^([\w-]+)={{/.test(str);
   }
 
   parseNextAttribute(str, startIndex) {
-    // Try to match attribute pattern
-    const normalAttrMatch = str.substring(startIndex).match(/^(\w+)="([^"]*)"/);
+    // Try to match attribute pattern with quoted value
+    const normalAttrMatch = str.substring(startIndex).match(/^([\w-]+)="([^"]*)"/);
     if (normalAttrMatch) {
+      const attrValue = normalAttrMatch[2];
+      // Check if the attribute value contains {{ expressions }}
+      if (attrValue.includes('{{')) {
+        // Parse the value as text with expressions
+        const parsedValue = this.parseTextWithExpressions(attrValue);
+        return {
+          name: normalAttrMatch[1],
+          value: parsedValue,
+          endIndex: startIndex + normalAttrMatch[0].length
+        };
+      }
       return {
         name: normalAttrMatch[1],
         value: normalAttrMatch[2],
@@ -478,7 +494,7 @@ class JSHaml {
     }
 
     // Try to match expression attribute
-    const exprAttrMatch = str.substring(startIndex).match(/^(\w+)={{([^}]+)}}/);
+    const exprAttrMatch = str.substring(startIndex).match(/^([\w-]+)={{([^}]+)}}/);
     if (exprAttrMatch) {
       return {
         name: exprAttrMatch[1],
@@ -563,7 +579,19 @@ class JSHaml {
 
         // Render attributes
         for (const [key, value] of Object.entries(node.attributes)) {
-          if (typeof value === 'object' && value.type === 'expression') {
+          if (Array.isArray(value)) {
+            // Handle mixed text/expression array from parseTextWithExpressions
+            let attrValue = '';
+            for (const part of value) {
+              if (part.type === 'text') {
+                attrValue += part.value;
+              } else if (part.type === 'expression') {
+                const result = evalExpression(part.value, ctx);
+                attrValue += result;
+              }
+            }
+            html += ` ${key}="${attrValue}"`;
+          } else if (typeof value === 'object' && value.type === 'expression') {
             // Check if this is a raw expression
             const isRaw = value.value.startsWith('raw ');
             const exprValue = isRaw ? value.value.substring(4).trim() : value.value;

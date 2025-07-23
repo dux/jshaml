@@ -247,6 +247,29 @@ describe('JSHaml', () => {
     
     expect(result).toBe('<button onclick="click()" class="btn">Click me</button>');
   });
+
+  test('should handle string interpolation with expressions in attributes', () => {
+    const template = `%div
+  %span class="foo-{{ 2 + 3 }}" Test
+  %span data-count="{{ items.length }}-items"= items.length
+  %span id="item-{{ itemId }}" Item`;
+
+    const render = jsHaml.compile(template);
+    const result = render({ items: ['a', 'b', 'c'], itemId: 42 });
+    
+    expect(result).toBe('<div><span class="foo-5">Test</span><span data-count="3-items">3</span><span id="item-42">Item</span></div>');
+  });
+
+  test('should handle complex expressions in string interpolation', () => {
+    const template = `%div
+  %a href="/user/{{ user.id }}/profile" View {{ user.name }}'s profile
+  %span class="status-{{ user.active ? 'active' : 'inactive' }}" Status`;
+
+    const render = jsHaml.compile(template);
+    const result = render({ user: { id: 123, name: 'John', active: true } });
+    
+    expect(result).toBe('<div><a href="/user/123/profile">View John\'s profile</a><span class="status-active">Status</span></div>');
+  });
 });
 
 // Run a simple test if executed directly

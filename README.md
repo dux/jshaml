@@ -1,6 +1,6 @@
 # JS HAML
 
-BETA!
+BETA! 95% Vibe coded
 
 A simplified HAML-like template parser for JavaScript that converts HAML-style syntax into render functions.
 
