@@ -270,6 +270,50 @@ describe('JSHaml', () => {
     
     expect(result).toBe('<div><a href="/user/123/profile">View John\'s profile</a><span class="status-active">Status</span></div>');
   });
+
+  test('should handle attributes with dashes', () => {
+    const template = '%div data-test="value" aria-label="test"';
+    const render = jsHaml.compile(template);
+    expect(render({})).toBe('<div data-test="value" aria-label="test"></div>');
+  });
+
+  test('should handle vue-style attributes with colons', () => {
+    const template = '%div v-on:click="handleClick" v-model="value"';
+    const render = jsHaml.compile(template);
+    expect(render({})).toBe('<div v-on:click="handleClick" v-model="value"></div>');
+  });
+
+  test('should handle comma values in quoted attributes', () => {
+    const template = '%div data-items="1,2,3"';
+    const render = jsHaml.compile(template);
+    expect(render({})).toBe('<div data-items="1,2,3"></div>');
+  });
+
+  test('should handle dashed attributes in curly brace syntax', () => {
+    const template = '%div{ data-id: "123", aria-label: "test" }';
+    const render = jsHaml.compile(template);
+    expect(render({})).toBe('<div data-id="123" aria-label="test"></div>');
+  });
+
+  test('should handle comma values in curly brace syntax', () => {
+    const template = '%div{ data-items: "1,2,3", class: "test" }';
+    const render = jsHaml.compile(template);
+    expect(render({})).toBe('<div data-items="1,2,3" class="test"></div>');
+  });
+
+  test('should handle expressions in dashed attributes', () => {
+    const template = '%div data-count={{ count }}';
+    const render = jsHaml.compile(template);
+    expect(render({ count: 5 })).toBe('<div data-count="5"></div>');
+  });
+
+  test('should handle multi-line dashed attributes', () => {
+    const template = `%div
+  data-id="123"
+  aria-label="test"`;
+    const render = jsHaml.compile(template);
+    expect(render({})).toBe('<div data-id="123" aria-label="test"></div>');
+  });
 });
 
 // Run a simple test if executed directly

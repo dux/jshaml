@@ -124,13 +124,13 @@ class JSHaml {
 
   isMultiLineAttribute(line) {
     // Check if line matches attribute pattern: word="value" or word={{ expression }} (no spaces before =)
-    return /^[\w-]+=((".+"|'.+'|\{\{.+\}\}))$/.test(line);
+    return /^[\w-:]+=((".+"|'.+'|\{\{.+\}\}))$/.test(line);
   }
 
   mergeMultiLineAttributes(elementNode, attributeLines) {
     // Parse each attribute line and merge into the element's attributes
     for (const attrLine of attributeLines) {
-      const attrMatch = attrLine.match(/^([\w-]+)=(.+)$/);
+      const attrMatch = attrLine.match(/^([\w-:]+)=(.+)$/);
       if (attrMatch) {
         const key = attrMatch[1];
         let value = attrMatch[2].trim();
@@ -288,22 +288,32 @@ class JSHaml {
         const attrString = trimmedLine.substring(1, endIndex).trim();
         afterCurlyIndex = remainingLine.indexOf('{') + endIndex + 1;
 
-        // Smart split on commas (not inside braces or backticks)
+        // Smart split on commas (not inside braces, backticks, or quotes)
         const attrPairs = [];
         let currentPair = '';
         let braceDepth = 0;
         let inBackticks = false;
+        let inSingleQuote = false;
+        let inDoubleQuote = false;
 
         for (let i = 0; i < attrString.length; i++) {
           const char = attrString[i];
-          if (char === '`') {
+          const prevChar = i > 0 ? attrString[i - 1] : '';
+          
+          if (char === '`' && prevChar !== '\\') {
             inBackticks = !inBackticks;
           } else if (!inBackticks) {
-            if (char === '{') braceDepth++;
-            else if (char === '}') braceDepth--;
+            if (char === "'" && prevChar !== '\\') {
+              inSingleQuote = !inSingleQuote;
+            } else if (char === '"' && prevChar !== '\\') {
+              inDoubleQuote = !inDoubleQuote;
+            } else if (!inSingleQuote && !inDoubleQuote) {
+              if (char === '{') braceDepth++;
+              else if (char === '}') braceDepth--;
+            }
           }
 
-          if (char === ',' && braceDepth === 0 && !inBackticks) {
+          if (char === ',' && braceDepth === 0 && !inBackticks && !inSingleQuote && !inDoubleQuote) {
             attrPairs.push(currentPair.trim());
             currentPair = '';
           } else {
@@ -316,21 +326,31 @@ class JSHaml {
         }
 
         for (const pair of attrPairs) {
-          // Find the first colon or equals that's not inside braces or backticks
+          // Find the first colon or equals that's not inside braces, backticks, or quotes
           let separatorIndex = -1;
           let pairBraceDepth = 0;
           let pairInBackticks = false;
+          let pairInSingleQuote = false;
+          let pairInDoubleQuote = false;
 
           for (let i = 0; i < pair.length; i++) {
             const char = pair[i];
-            if (char === '`') {
+            const prevChar = i > 0 ? pair[i - 1] : '';
+            
+            if (char === '`' && prevChar !== '\\') {
               pairInBackticks = !pairInBackticks;
             } else if (!pairInBackticks) {
-              if (char === '{') pairBraceDepth++;
-              else if (char === '}') pairBraceDepth--;
-              else if ((char === ':' || char === '=') && pairBraceDepth === 0 && separatorIndex === -1) {
-                separatorIndex = i;
-                break;
+              if (char === "'" && prevChar !== '\\') {
+                pairInSingleQuote = !pairInSingleQuote;
+              } else if (char === '"' && prevChar !== '\\') {
+                pairInDoubleQuote = !pairInDoubleQuote;
+              } else if (!pairInSingleQuote && !pairInDoubleQuote) {
+                if (char === '{') pairBraceDepth++;
+                else if (char === '}') pairBraceDepth--;
+                else if ((char === ':' || char === '=') && pairBraceDepth === 0 && separatorIndex === -1) {
+                  separatorIndex = i;
+                  break;
+                }
               }
             }
           }
@@ -468,12 +488,12 @@ class JSHaml {
   }
 
   looksLikeAttribute(str) {
-    return /^([\w-]+)=/.test(str) || /^([\w-]+)={{/.test(str);
+    return /^([\w-:]+)=/.test(str) || /^([\w-:]+)={{/.test(str);
   }
 
   parseNextAttribute(str, startIndex) {
     // Try to match attribute pattern with quoted value
-    const normalAttrMatch = str.substring(startIndex).match(/^([\w-]+)="([^"]*)"/);
+    const normalAttrMatch = str.substring(startIndex).match(/^([\w-:]+)="([^"]*)"/);
     if (normalAttrMatch) {
       const attrValue = normalAttrMatch[2];
       // Check if the attribute value contains {{ expressions }}
@@ -494,7 +514,7 @@ class JSHaml {
     }
 
     // Try to match expression attribute
-    const exprAttrMatch = str.substring(startIndex).match(/^([\w-]+)={{([^}]+)}}/);
+    const exprAttrMatch = str.substring(startIndex).match(/^([\w-:]+)={{([^}]+)}}/);
     if (exprAttrMatch) {
       return {
         name: exprAttrMatch[1],
