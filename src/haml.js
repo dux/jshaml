@@ -299,7 +299,7 @@ class JSHaml {
         for (let i = 0; i < attrString.length; i++) {
           const char = attrString[i];
           const prevChar = i > 0 ? attrString[i - 1] : '';
-          
+
           if (char === '`' && prevChar !== '\\') {
             inBackticks = !inBackticks;
           } else if (!inBackticks) {
@@ -336,7 +336,7 @@ class JSHaml {
           for (let i = 0; i < pair.length; i++) {
             const char = pair[i];
             const prevChar = i > 0 ? pair[i - 1] : '';
-            
+
             if (char === '`' && prevChar !== '\\') {
               pairInBackticks = !pairInBackticks;
             } else if (!pairInBackticks) {

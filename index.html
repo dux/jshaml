@@ -62,7 +62,7 @@
                 <textarea
                     id="template"
                     class="w-full h-96 border border-gray-300 rounded-md p-4 font-mono text-sm bg-white focus:ring-2 focus:ring-gray-300 focus:border-gray-400 outline-none resize-y"
-                    placeholder="Enter your HAML template here...">%div.container
+                    placeholder="Enter your HAML template here...">.container
   %h1= title
 
   %button onclick="alert('clicked!')" disabled={{ !canClick }}
@@ -76,6 +76,7 @@
       - for item, index in items
         %li class="item-{{ index + 1 }}"
           %span.index= index + 1
+          %smpan.mx-3 &mdash;
           %span.item= item
   - else
     %p No items found</textarea>

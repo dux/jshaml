@@ -1,11 +1,12 @@
 {
   "name": "@dinoreic/haml",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A simplified HAML-like parser for JavaScript",
   "main": "src/haml.js",
   "type": "module",
   "files": ["README.md", "src/"],
   "scripts": {
+    "dev": "open http://localhost:8000/; find src | entr -r ruby -run -e httpd . -p 8000",
     "test": "node --experimental-vm-modules node_modules/.bin/jest",
     "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch"
   },

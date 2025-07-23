@@ -30,17 +30,21 @@ const jsHaml = new JSHaml();
 
 // Define your template
 const template = `
-%div.container
+.container
   %h1= title
 
-  %button onclick="handleClick()" disabled={{ !canClick }}
+  %button onclick="alert('clicked!')" disabled={{ !canClick }}
     Click me
+
+  %div class="foo-{{ 2 + 3 }}" data-count="{{ items.length }}-items"
+    Mixed expressions in attributes
 
   - if items.length > 0
     %ul
       - for item, index in items
-        %li
+        %li class="item-{{ index + 1 }}"
           %span.index= index + 1
+          %smpan.mx-3 &mdash;
           %span.item= item
   - else
     %p No items found
@@ -51,10 +55,9 @@ const render = jsHaml.compile(template);
 
 // Render with context
 const html = render({
-  title: 'My App',
+  title: 'My Demo App',
   canClick: true,
-  items: ['Apple', 'Banana', 'Orange'],
-  handleClick: () => console.log('clicked')
+  items: ['Apple', 'Banana', 'Cherry', 'Date']
 });
 
 console.log(html);
@@ -63,20 +66,29 @@ console.log(html);
 **Output:**
 ```html
 <div class="container">
-  <h1>My App</h1>
-  <button onclick="handleClick()" disabled>Click me</button>
+  <h1>My Demo App</h1>
+  <button onclick="alert('clicked!')">Click me</button>
+  <div class="foo-5" data-count="4-items">Mixed expressions in attributes</div>
   <ul>
-    <li>
+    <li class="item-1">
       <span class="index">1</span>
+      <smpan class="mx-3">&mdash;</smpan>
       <span class="item">Apple</span>
     </li>
-    <li>
+    <li class="item-2">
       <span class="index">2</span>
+      <smpan class="mx-3">&mdash;</smpan>
       <span class="item">Banana</span>
     </li>
-    <li>
+    <li class="item-3">
       <span class="index">3</span>
-      <span class="item">Orange</span>
+      <smpan class="mx-3">&mdash;</smpan>
+      <span class="item">Cherry</span>
+    </li>
+    <li class="item-4">
+      <span class="index">4</span>
+      <smpan class="mx-3">&mdash;</smpan>
+      <span class="item">Date</span>
     </li>
   </ul>
 </div>
