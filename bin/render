@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const JSHaml = require('../src/js_haml');
+import fs from 'fs';
+import path from 'path';
+import JSHaml from '../src/haml.js';
+import prettifyHtml from '../src/prettify.js';
 
 // Check command line arguments
 if (process.argv.length < 3) {
@@ -48,56 +49,3 @@ if (!jsonData) {
   console.log(prettyHtml);
 }
 
-// Simple HTML prettifier
-function prettifyHtml(html) {
-  let formatted = '';
-  let indent = 0;
-  const tags = html.match(/<[^>]+>|[^<]+/g) || [];
-
-  for (let i = 0; i < tags.length; i++) {
-    const tag = tags[i];
-
-    if (tag.startsWith('</')) {
-      // Closing tag
-      indent = Math.max(0, indent - 1);
-      formatted += '  '.repeat(indent) + tag;
-      if (i < tags.length - 1 && !tags[i + 1].startsWith('<')) {
-        // Don't add newline if next is text content
-        continue;
-      }
-      formatted += '\n';
-    } else if (tag.startsWith('<') && !tag.endsWith('/>')) {
-      // Opening tag
-      formatted += '  '.repeat(indent) + tag;
-
-      // Check if next is text content
-      if (i < tags.length - 1 && !tags[i + 1].startsWith('<')) {
-        // Keep text on same line as opening tag
-        continue;
-      }
-      formatted += '\n';
-
-      // Don't increase indent for self-closing tags or tags like <br>
-      if (!tag.match(/<(br|hr|img|input|meta|link|area|base|col|embed|source|track|wbr)\b/i)) {
-        indent++;
-      }
-    } else if (!tag.startsWith('<')) {
-      // Text content
-      const trimmed = tag.trim();
-      if (trimmed) {
-        formatted += trimmed;
-        // Check if next is closing tag
-        if (i < tags.length - 1 && tags[i + 1].startsWith('</')) {
-          // Keep closing tag on same line
-          continue;
-        }
-        formatted += '\n';
-      }
-    } else {
-      // Self-closing tag or other
-      formatted += '  '.repeat(indent) + tag + '\n';
-    }
-  }
-
-  return formatted.trim();
-}

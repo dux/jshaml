@@ -1,3 +1,4 @@
+
 class JSHaml {
   constructor() {
     this.indentSize = 2;
@@ -20,30 +21,30 @@ class JSHaml {
     let lastIndex = 0;
     const regex = /\{\{\s*([^}]+)\s*\}\}/g;
     let match;
-    
+
     while ((match = regex.exec(text)) !== null) {
       // Add text before the expression
       if (match.index > lastIndex) {
         nodes.push({ type: 'text', value: text.substring(lastIndex, match.index) });
       }
-      
+
       // Add the expression
       const expr = match[1].trim();
       nodes.push({ type: 'expression', value: expr });
-      
+
       lastIndex = match.index + match[0].length;
     }
-    
+
     // Add remaining text
     if (lastIndex < text.length) {
       nodes.push({ type: 'text', value: text.substring(lastIndex) });
     }
-    
+
     // If no expressions found, return original text node
     if (nodes.length === 0) {
       return [{ type: 'text', value: text }];
     }
-    
+
     return nodes;
   }
 
@@ -55,17 +56,17 @@ class JSHaml {
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
       if (!line.trim()) continue; // Skip empty lines
-      
+
       const indent = this.getIndent(line);
       const trimmed = line.trim();
-      
+
       // Pop stack items until we find the parent
       while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
         stack.pop();
       }
 
       const parent = stack[stack.length - 1];
-      
+
       // Check if this looks like a multi-line attribute for the parent element
       if (this.isMultiLineAttribute(trimmed) && stack.length > 1) {
         const parentElement = stack[stack.length - 1].node;
@@ -73,17 +74,17 @@ class JSHaml {
           // This is a multi-line attribute, collect all consecutive attribute lines
           const attributeLines = [];
           let currentIndex = index;
-          
+
           while (currentIndex < lines.length) {
             const attrLine = lines[currentIndex];
             if (!attrLine.trim()) {
               currentIndex++;
               continue;
             }
-            
+
             const attrIndent = this.getIndent(attrLine);
             const attrTrimmed = attrLine.trim();
-            
+
             if (attrIndent === indent && this.isMultiLineAttribute(attrTrimmed)) {
               attributeLines.push(attrTrimmed);
               currentIndex++;
@@ -91,22 +92,22 @@ class JSHaml {
               break;
             }
           }
-          
+
           // Parse and merge these attributes into the parent element
           this.mergeMultiLineAttributes(parentElement, attributeLines);
-          
+
           // Skip the processed lines
           index = currentIndex - 1;
           continue;
         }
       }
-      
+
       const node = this.parseLine(trimmed);
-      
+
       if (node) {
         node.indent = indent;
         parent.children.push(node);
-        
+
         if (node.type === 'element' || node.type === 'if' || node.type === 'else' || node.type === 'else-if' || node.type === 'for') {
           stack.push({ children: node.children || [], indent, node });
         }
@@ -133,9 +134,9 @@ class JSHaml {
       if (attrMatch) {
         const key = attrMatch[1];
         let value = attrMatch[2].trim();
-        
+
         // Remove surrounding quotes if present
-        if ((value.startsWith('"') && value.endsWith('"')) || 
+        if ((value.startsWith('"') && value.endsWith('"')) ||
             (value.startsWith("'") && value.endsWith("'"))) {
           value = value.slice(1, -1);
           elementNode.attributes[key] = value;
@@ -159,7 +160,7 @@ class JSHaml {
     // Handle JS execution (returns '')
     if (line.startsWith('- ')) {
       const jsCode = line.substring(2).trim();
-      
+
       if (jsCode.startsWith('if ')) {
         const condition = jsCode.substring(3);
         return { type: 'if', condition, children: [] };
@@ -175,16 +176,16 @@ class JSHaml {
         // Parse for loop: "for el in [1,2,3,4]" or "for el, index in [1,2,3,4]"
         const forMatch = jsCode.match(/^for\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+(.+)$/);
         if (forMatch) {
-          return { 
-            type: 'for', 
-            variable: forMatch[1], 
+          return {
+            type: 'for',
+            variable: forMatch[1],
             indexVariable: forMatch[2] || null,
-            expression: forMatch[3], 
-            children: [] 
+            expression: forMatch[3],
+            children: []
           };
         }
       }
-      
+
       return { type: 'js', code: jsCode };
     }
 
@@ -196,11 +197,11 @@ class JSHaml {
         const tag = 'div';
         const classAndId = divMatch[1];
         let remainingLine = line.substring(divMatch[0].length);
-        
+
         // Parse classes and id from the shorthand
         const classes = [];
         let id = null;
-        
+
         const parts = classAndId.match(/[\.\#][\w\-]+/g) || [];
         for (const part of parts) {
           if (part.startsWith('.')) {
@@ -209,7 +210,7 @@ class JSHaml {
             id = part.substring(1);
           }
         }
-        
+
         return this.parseElementWithClassesAndId(tag, classes, id, remainingLine);
       }
     }
@@ -219,15 +220,15 @@ class JSHaml {
       // Extract tag name and classes/id
       const tagMatch = line.match(/^%(\w+)([\.\#][\w\.\#\-]*)?/);
       if (!tagMatch) return null;
-      
+
       const tag = tagMatch[1];
       const classAndId = tagMatch[2] || '';
       let remainingLine = line.substring(tagMatch[0].length);
-      
+
       // Parse classes and id from the tag
       const classes = [];
       let id = null;
-      
+
       if (classAndId) {
         const parts = classAndId.match(/[\.\#][\w\-]+/g) || [];
         for (const part of parts) {
@@ -238,7 +239,7 @@ class JSHaml {
           }
         }
       }
-      
+
       return this.parseElementWithClassesAndId(tag, classes, id, remainingLine);
     }
 
@@ -260,13 +261,13 @@ class JSHaml {
     // First check for curly brace attributes { attr: "value" }
     let curlyAttributes = {};
     let afterCurlyIndex = 0;
-    
+
     // Find matching closing brace, accounting for nested braces
     const trimmedLine = remainingLine.trim();
     if (trimmedLine.startsWith('{')) {
       let braceCount = 0;
       let endIndex = -1;
-      
+
       for (let i = 0; i < trimmedLine.length; i++) {
         if (trimmedLine[i] === '{') braceCount++;
         if (trimmedLine[i] === '}') {
@@ -277,17 +278,17 @@ class JSHaml {
           }
         }
       }
-      
+
       if (endIndex !== -1) {
         const attrString = trimmedLine.substring(1, endIndex).trim();
         afterCurlyIndex = remainingLine.indexOf('{') + endIndex + 1;
-        
+
         // Smart split on commas (not inside braces or backticks)
         const attrPairs = [];
         let currentPair = '';
         let braceDepth = 0;
         let inBackticks = false;
-        
+
         for (let i = 0; i < attrString.length; i++) {
           const char = attrString[i];
           if (char === '`') {
@@ -296,7 +297,7 @@ class JSHaml {
             if (char === '{') braceDepth++;
             else if (char === '}') braceDepth--;
           }
-          
+
           if (char === ',' && braceDepth === 0 && !inBackticks) {
             attrPairs.push(currentPair.trim());
             currentPair = '';
@@ -304,17 +305,17 @@ class JSHaml {
             currentPair += char;
           }
         }
-        
+
         if (currentPair.trim()) {
           attrPairs.push(currentPair.trim());
         }
-        
+
         for (const pair of attrPairs) {
           // Find the first colon or equals that's not inside braces or backticks
           let separatorIndex = -1;
           let pairBraceDepth = 0;
           let pairInBackticks = false;
-          
+
           for (let i = 0; i < pair.length; i++) {
             const char = pair[i];
             if (char === '`') {
@@ -328,17 +329,17 @@ class JSHaml {
               }
             }
           }
-          
+
           if (separatorIndex !== -1) {
             const key = pair.substring(0, separatorIndex).trim();
             let value = pair.substring(separatorIndex + 1).trim();
-            
+
             // Remove surrounding quotes if present
-            if ((value.startsWith('"') && value.endsWith('"')) || 
+            if ((value.startsWith('"') && value.endsWith('"')) ||
                 (value.startsWith("'") && value.endsWith("'"))) {
               value = value.slice(1, -1);
             }
-            
+
             // Check if value contains {{ }} expressions
             if (value.includes('{{') && value.includes('}}')) {
               // Check if entire value is a single {{ expression }}
@@ -360,11 +361,11 @@ class JSHaml {
         }
       }
     }
-    
+
     // Parse regular attributes and find where content starts
     const remainingAfterCurly = remainingLine.substring(afterCurlyIndex);
     const { attributes, contentStartIndex } = this.parseElementAttributes(remainingAfterCurly);
-    
+
     // Add classes and id to attributes first
     if (classes.length > 0) {
       attributes.class = classes.join(' ');
@@ -372,7 +373,7 @@ class JSHaml {
     if (id) {
       attributes.id = id;
     }
-    
+
     // Merge curly attributes, handling class specially
     for (const [key, value] of Object.entries(curlyAttributes)) {
       if (key === 'class' && attributes.class) {
@@ -391,9 +392,9 @@ class JSHaml {
         attributes[key] = value;
       }
     }
-    
+
     const node = { type: 'element', tag, attributes, children: [] };
-    
+
     // Check for inline content
     if (contentStartIndex !== -1) {
       const content = remainingAfterCurly.substring(contentStartIndex).trim();
@@ -411,7 +412,7 @@ class JSHaml {
         node.children = this.parseTextWithExpressions(content);
       }
     }
-    
+
     return node;
   }
 
@@ -419,25 +420,25 @@ class JSHaml {
     const attributes = {};
     let contentStartIndex = -1;
     let currentIndex = 0;
-    
+
     // Skip leading whitespace
     while (currentIndex < str.length && /\s/.test(str[currentIndex])) {
       currentIndex++;
     }
-    
+
     // Parse attributes until we hit content or end of string
     while (currentIndex < str.length) {
       // Check if we've hit content (text that's not an attribute)
       if (!this.looksLikeAttribute(str.substring(currentIndex))) {
         // Check for = which indicates expression content
         const remainingTrimmed = str.substring(currentIndex).trim();
-        if (remainingTrimmed.startsWith('=') || 
+        if (remainingTrimmed.startsWith('=') ||
             (remainingTrimmed && !remainingTrimmed.includes('=') && !remainingTrimmed.includes('{'))) {
           contentStartIndex = currentIndex;
           break;
         }
       }
-      
+
       // Try to parse an attribute
       const attrResult = this.parseNextAttribute(str, currentIndex);
       if (attrResult) {
@@ -451,13 +452,13 @@ class JSHaml {
         }
         break;
       }
-      
+
       // Skip whitespace between attributes
       while (currentIndex < str.length && /\s/.test(str[currentIndex])) {
         currentIndex++;
       }
     }
-    
+
     return { attributes, contentStartIndex };
   }
 
@@ -475,7 +476,7 @@ class JSHaml {
         endIndex: startIndex + normalAttrMatch[0].length
       };
     }
-    
+
     // Try to match expression attribute
     const exprAttrMatch = str.substring(startIndex).match(/^(\w+)={{([^}]+)}}/);
     if (exprAttrMatch) {
@@ -485,18 +486,18 @@ class JSHaml {
         endIndex: startIndex + exprAttrMatch[0].length
       };
     }
-    
+
     return null;
   }
 
   compile(template) {
     const ast = this.parse(template);
     const self = this;
-    
+
     return function(context) {
       const render = (nodes, ctx) => {
         let html = '';
-        
+
         for (const node of nodes) {
           switch (node.type) {
             case 'element':
@@ -553,13 +554,13 @@ class JSHaml {
               break;
           }
         }
-        
+
         return html;
       };
 
       const renderElement = (node, ctx) => {
         let html = `<${node.tag}`;
-        
+
         // Render attributes
         for (const [key, value] of Object.entries(node.attributes)) {
           if (typeof value === 'object' && value.type === 'expression') {
@@ -577,15 +578,15 @@ class JSHaml {
             html += ` ${key}="${value}"`;
           }
         }
-        
+
         html += '>';
-        
+
         if (node.children) {
           html += render(node.children, ctx);
         }
-        
+
         html += `</${node.tag}>`;
-        
+
         return html;
       };
 
@@ -594,10 +595,10 @@ class JSHaml {
           // Use 'with' to make context properties available directly
           const func = new Function('context', `with (context) { return ${expr} }`);
           const result = func(ctx);
-          
+
           // Skip escaping for boolean values used in conditionals
           if (typeof result === 'boolean') return result;
-          
+
           // Apply HTML escaping by default, unless escapeOutput is false
           if (escapeOutput) {
             return self.escapeHtml(result);
@@ -613,14 +614,14 @@ class JSHaml {
         const processed = [];
         for (let i = 0; i < nodes.length; i++) {
           const node = nodes[i];
-          
+
           if (node.type === 'if') {
             const ifChain = { type: 'if-chain', conditions: [] };
             ifChain.conditions.push({
               condition: node.condition,
               children: processIfChains(node.children) // Recursively process children
             });
-            
+
             // Look for else/else-if at the same level
             let j = i + 1;
             while (j < nodes.length && (nodes[j].type === 'else' || nodes[j].type === 'else-if')) {
@@ -639,7 +640,7 @@ class JSHaml {
               }
               j++;
             }
-            
+
             processed.push(ifChain);
             i = j - 1;
           } else if (node.type === 'for') {
@@ -660,13 +661,13 @@ class JSHaml {
         }
         return processed;
       };
-      
+
       const processedAst = processIfChains(ast);
 
       // Custom render for if-chains
       const renderWithIfChains = (nodes, ctx) => {
         let html = '';
-        
+
         for (const node of nodes) {
           if (node.type === 'if-chain') {
             for (const cond of node.conditions) {
@@ -679,7 +680,7 @@ class JSHaml {
             html += render([node], ctx);
           }
         }
-        
+
         return html;
       };
 
@@ -690,13 +691,13 @@ class JSHaml {
   // Generate minimal JavaScript function from AST
   generateMinimalFunction(template) {
     const ast = this.parse(template);
-    
+
     // Process if-else chains first
     const processedAst = this.processIfChainsForGeneration(ast);
-    
+
     // Generate the function body
     const functionBody = this.generateCode(processedAst);
-    
+
     // Include the escape function inline
     const escapeFunc = `function escapeHtml(str) {
     if (str === null || str === undefined) return '';
@@ -707,7 +708,7 @@ class JSHaml {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }`;
-    
+
     // Return the minimal function as a string
     return `function(context) {
   ${escapeFunc}
@@ -721,14 +722,14 @@ class JSHaml {
     const processed = [];
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
-      
+
       if (node.type === 'if') {
         const ifChain = { type: 'if-chain', conditions: [] };
         ifChain.conditions.push({
           condition: node.condition,
           children: this.processIfChainsForGeneration(node.children)
         });
-        
+
         // Look for else/else-if at the same level
         let j = i + 1;
         while (j < nodes.length && (nodes[j].type === 'else' || nodes[j].type === 'else-if')) {
@@ -747,7 +748,7 @@ class JSHaml {
           }
           j++;
         }
-        
+
         processed.push(ifChain);
         i = j - 1;
       } else if (node.type === 'for') {
@@ -770,7 +771,7 @@ class JSHaml {
   generateCode(nodes) {
     if (nodes.length === 0) return '""';
     if (nodes.length === 1) return this.generateNodeCode(nodes[0]);
-    
+
     // Concatenate multiple nodes
     return nodes.map(node => this.generateNodeCode(node)).join(' + ');
   }
@@ -804,7 +805,7 @@ class JSHaml {
 
   generateElementCode(node) {
     let code = `"<${node.tag}"`;
-    
+
     // Generate attributes
     for (const [key, value] of Object.entries(node.attributes)) {
       if (typeof value === 'object' && value.type === 'expression') {
@@ -822,25 +823,25 @@ class JSHaml {
         code += ` + " ${key}=\\"${value}\\""`;
       }
     }
-    
+
     code += ` + ">"`;
-    
+
     // Generate children
     if (node.children && node.children.length > 0) {
       code += ` + ${this.generateCode(node.children)}`;
     }
-    
+
     code += ` + "</${node.tag}>"`;
-    
+
     return `(${code})`;
   }
 
   generateIfChainCode(node) {
     let code = '(';
-    
+
     for (let i = 0; i < node.conditions.length; i++) {
       const cond = node.conditions[i];
-      
+
       if (i === 0) {
         code += `${cond.condition} ? ${this.generateCode(cond.children)} : `;
       } else if (cond.condition === 'true') {
@@ -851,12 +852,12 @@ class JSHaml {
         code += `${cond.condition} ? ${this.generateCode(cond.children)} : `;
       }
     }
-    
+
     // If no else clause, add empty string
     if (node.conditions[node.conditions.length - 1].condition !== 'true') {
       code += '""';
     }
-    
+
     code += ')';
     return code;
   }
@@ -890,4 +891,5 @@ class JSHaml {
   }
 }
 
+// ES6 exports
 export default JSHaml;

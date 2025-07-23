@@ -2,8 +2,9 @@
   "name": "@dinoreic/haml",
   "version": "0.1.0",
   "description": "A simplified HAML-like parser for JavaScript",
-  "main": "src/js_haml.js",
+  "main": "src/haml.js",
   "type": "module",
+  "files": ["README.md", "src/"],
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/.bin/jest",
     "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch"
@@ -11,6 +12,9 @@
   "keywords": ["haml", "template", "parser"],
   "author": "",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "jest": "^29.0.0"
   }

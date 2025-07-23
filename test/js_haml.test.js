@@ -1,4 +1,4 @@
-import JSHaml from '../src/js_haml.js';
+import JSHaml from '../src/haml.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

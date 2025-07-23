@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSHaml Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Basic styling for rendered output */
+        #output h1 { font-size: 2rem; font-weight: bold; margin: 1rem 0; }
+        #output h2 { font-size: 1.5rem; font-weight: bold; margin: 0.875rem 0; }
+        #output h3 { font-size: 1.25rem; font-weight: bold; margin: 0.75rem 0; }
+        #output h4 { font-size: 1.125rem; font-weight: bold; margin: 0.625rem 0; }
+        #output h5 { font-size: 1rem; font-weight: bold; margin: 0.5rem 0; }
+        #output h6 { font-size: 0.875rem; font-weight: bold; margin: 0.5rem 0; }
+        #output p { margin: 0.5rem 0; }
+        #output ul { list-style-type: disc; margin: 0.5rem 0; padding-left: 1.5rem; }
+        #output ol { list-style-type: decimal; margin: 0.5rem 0; padding-left: 1.5rem; }
+        #output li { margin: 0.25rem 0; }
+        #output button { 
+            background-color: #374151; 
+            color: white; 
+            padding: 0.5rem 1rem; 
+            border-radius: 0.375rem; 
+            border: none; 
+            cursor: pointer; 
+        }
+        #output button:hover { background-color: #1f2937; }
+        #output button:disabled { 
+            background-color: #9ca3af; 
+            cursor: not-allowed; 
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <div class="max-w-full mx-auto p-6">
+        <!-- Header -->
+        <div class="bg-white shadow-sm rounded-lg border border-gray-200 mb-6">
+            <div class="bg-gray-100 px-8 py-6 border-b border-gray-200">
+                <h1 class="text-2xl font-medium text-gray-800 mb-2">JSHaml Demo</h1>
+                <p class="text-gray-600">Interactive HAML template parser - Edit template and data to see live results</p>
+            </div>
+        </div>
+
+        <!-- Template and Data Input -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white shadow-sm rounded-lg p-6 border border-gray-200">
+                <h3 class="text-lg font-medium text-gray-700 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                    HAML Template
+                </h3>
+                <textarea 
+                    id="template" 
+                    class="w-full h-96 border border-gray-300 rounded-md p-4 font-mono text-sm bg-white focus:ring-2 focus:ring-gray-300 focus:border-gray-400 outline-none resize-y" 
+                    placeholder="Enter your HAML template here...">%div.container
+  %h1= title
+
+  %button onclick="alert('clicked!')" disabled={{ !canClick }}
+    Click me
+
+  - if items.length > 0
+    %ul
+      - for item, index in items
+        %li
+          %span.index= index + 1
+          %span.item= item
+  - else
+    %p No items found</textarea>
+            </div>
+
+            <div class="bg-white shadow-sm rounded-lg p-6 border border-gray-200">
+                <h3 class="text-lg font-medium text-gray-700 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                    JSON Data
+                </h3>
+                <textarea 
+                    id="jsonData" 
+                    class="w-full h-96 border border-gray-300 rounded-md p-4 font-mono text-sm bg-white focus:ring-2 focus:ring-gray-300 focus:border-gray-400 outline-none resize-y" 
+                    placeholder="Enter your JSON data here...">{
+  "title": "My Demo App",
+  "canClick": true,
+  "items": ["Apple", "Banana", "Cherry", "Date"]
+}</textarea>
+            </div>
+        </div>
+
+        <!-- Render Button -->
+        <div class="text-center mb-6">
+            <button 
+                class="bg-gray-700 hover:bg-gray-800 text-white px-8 py-2 rounded-md font-medium transition-colors duration-200" 
+                onclick="renderTemplate()">
+                Render Template
+            </button>
+        </div>
+
+        <!-- Results -->
+        <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+            <div class="p-8">
+                <div class="mb-8">
+                    <h3 class="text-lg font-medium text-gray-700 mb-4 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                        Rendered Output
+                    </h3>
+                    <div id="output" class="bg-gray-50 border border-gray-200 rounded-md p-6 min-h-24">
+                        <em class="text-gray-500">Click "Render Template" to see the result</em>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-medium text-gray-700 mb-4 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                        HTML Source
+                    </h3>
+                    <xmp id="htmlSource" class="bg-gray-100 border border-gray-200 rounded-md p-6 font-mono text-sm text-gray-700 whitespace-pre-wrap">Click "Render Template" to see the HTML source</xmp>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if file is loaded via web server
+        if (window.location.protocol === 'file:') {
+            alert('❌ Error: This demo must be served via a web server!\n\nES6 modules cannot be loaded from file:// URLs.\n\nPlease run a local web server:\n• Ruby: ruby -run -e httpd . -p 8000\n• Python: python -m http.server 8000\n• Node.js: npx serve .\n• PHP: php -S localhost:8000\n\nThen open http://localhost:8000');
+            throw new Error('File must be served via web server');
+        }
+    </script>
+
+    <script type="module">
+        import JSHaml from './src/haml.js';
+        import prettifyHtml from './src/prettify.js';
+
+        const jsHaml = new JSHaml();
+
+        function renderTemplate() {
+            try {
+                const template = document.getElementById('template').value;
+                const jsonData = document.getElementById('jsonData').value;
+
+                // Clear previous errors
+                document.querySelectorAll('.error').forEach(el => el.remove());
+
+                // Parse JSON data
+                let data;
+                try {
+                    data = JSON.parse(jsonData);
+                } catch (e) {
+                    throw new Error('Invalid JSON data: ' + e.message);
+                }
+
+                // Compile and render template
+                const render = jsHaml.compile(template);
+                const html = render(data);
+
+                // Display rendered output
+                document.getElementById('output').innerHTML = html;
+
+                // Display HTML source (prettified)
+                const prettyHtml = prettifyHtml(html);
+                document.getElementById('htmlSource').textContent = prettyHtml;
+
+            } catch (error) {
+                // Display error
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'bg-red-50 border border-red-200 text-red-700 p-4 rounded-md mt-3';
+                errorDiv.textContent = 'Error: ' + error.message;
+
+                document.getElementById('output').innerHTML = '<em class="text-gray-500">Error occurred during rendering</em>';
+                document.getElementById('output').appendChild(errorDiv);
+
+                document.getElementById('htmlSource').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Make renderTemplate available globally for the onclick handler
+        window.renderTemplate = renderTemplate;
+    </script>
+</body>
+</html>
